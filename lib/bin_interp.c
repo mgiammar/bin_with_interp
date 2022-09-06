@@ -14,7 +14,7 @@ void int_to_bin_digit(int num, int count, int* out) {
     /* assert: count <= sizeof(int)*CHAR_BIT */
     unsigned int mask = 1U << (count-1);
     int i;
-    for (i = 0; i < count; i++) {
+    for (i = count-1; i >= 0; i--) {  // Decreasing index
         out[i] = (num & mask) ? 1 : 0;
         num <<= 1;
     }
@@ -164,24 +164,17 @@ void linear_interpolation(
     }
 
     for (i = 0; i < n_points * n_dims; i += n_dims) {
-
-        printf("Point: (%f, %f) \n", points[i], points[i+1]);
-
         // Ensure point is within bounds of grid, otherwise skip binning point
         vector_add_double(points+i, maximum_vector, n_dims, temp_double_arr);
-        if (vector_min_double(points+i, n_dims) < 0 || vector_min_double(temp_double_arr, n_dims) > 0) {
-            printf("min %f\n", vector_min_double(points+i, n_dims));
-            printf("max %f\n", vector_min_double(temp_double_arr, n_dims));
-            printf("Out of bounds\n");
-            continue;
-        }
+        if (vector_min_double(points+i, n_dims) < 0 || vector_min_double(temp_double_arr, n_dims) > 0) continue;
 
         memset(prev_directions, 0, sizeof(prev_directions));
+        memset(temp_amp, 0, sizeof(temp_amp));
+        temp_amp[dot_product_int(to_linear_index_factors, nearest_points+i, n_dims)] = 1;
+        // iterate over all directions for a point
         for (j = 0; j < n_dims; j++) {
             n_dirs = (int) pow((double) 2, (double) j);  // 2^j different combos
             delta = offset_vectors[i+j];
-
-            printf("%f\n", delta);
             
             // Check if delta is zero or right or left 
             if (delta == 0) continue;
@@ -190,17 +183,10 @@ void linear_interpolation(
                 delta = -delta;
             }
             else dir = 1;
-
-            printf("next\n");
             
             // Generate all combinations of previous directions without actually storing them
             memset(temp_int_arr1, 0, sizeof(temp_int_arr1));
-            memset(temp_amp, 0, sizeof(temp_amp));
-            temp_amp[dot_product_int(to_linear_index_factors, nearest_points+i, n_dims)] = 1;
             for (k = 0; k < n_dirs; k++) {
-
-                printf("k: %d\n", k);
-
                 // temp_int_arr1 now holds binary array of 0 and 1
                 int_to_bin_digit(k, n_dims, temp_int_arr1);
 
@@ -217,54 +203,10 @@ void linear_interpolation(
                 temp_amp[dir_idx] = temp_amp[lin_idx] * delta;
                 temp_amp[lin_idx] *= 1 - delta;
             }
+            // Could theoretically reduce the allocation to temp_amp to 2^n, but
+            // then would require even more pointer math...
             prev_directions[j] = dir;
-            vector_add_double(amp, temp_amp, total_bins, amp);
         }
+        vector_add_double(amp, temp_amp, total_bins, amp);
     }
 }
-
-// int main() {
-//     printf("Hello World!\n");
-
-//     // // double x[4] = {1.0, 2.0, 3.0, 4.0};
-//     // // double y[4] = {2.0, 3.0, 4.0, 5.0};
-//     // int x[8] = {1, 2, 3, 4, 5, 6, 7, 8};
-//     // int y[4] = {2, 3, 4, 5};
-//     // int res[4];
-
-//     // int n = sizeof(x) / sizeof(x[0]);
-//     // printf("%d\n", sizeof x);
-
-//     // for (int i = 0; i < 8; i++) {
-//     //     printf("%d ", x[i]);
-//     // }
-
-//     // memset(x, 0, sizeof(x));
-
-//     // for (int i = 0; i < 8; i++) {
-//     //     printf("%d ", x[i]);
-//     // }
-
-
-//     // elementwise_vector_multiplication(res, x, y, n);
-//     // for (int loop = 0; loop < 4; loop++) {
-//     //     printf("%d ", res[loop]);
-//     // }
-//     // printf("\n");
-
-//     // int prod = dot_product(x, y, n);
-//     // printf("%d\n", prod);
-
-//     // int dims[5] = {10, 10, 10, 10, 10};
-//     // linear_interpolation(NULL, dims, 5, NULL, NULL, NULL);
-
-//     int x[4] = {1, 2, 3, 4};
-//     int y[4] = {2, 4, 6, 8};
-//     vector_add_int(x, y, 4, x);
-//     for (int loop = 0; loop < 4; loop++) {
-//         printf("%d ", x[loop]);
-//     }
-//     printf("\n");
-
-//     return 0;
-// }
